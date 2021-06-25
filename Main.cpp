@@ -4,6 +4,9 @@
 #include "keyboard.h"   //ƒL[ƒ{[ƒh‚Ìˆ—
 #include "FPS.h"        //FPS‚Ìˆ—
 
+//ƒ}ƒNƒ’è‹`
+#define TAMA_DIV_MAX   4//’e‚ÌMax’l
+
 //=========================================================
 //     \‘¢‘Ì    
 //=========================================================
@@ -91,6 +94,12 @@ BOOL TipsFlag = FALSE;    //ƒqƒ“ƒg—“‚ğ•\¦‚·‚é‚©H
 //Å‰‚ÍƒNƒŠƒA‚ğ“ü‚ê‚Ä‚¨‚«‚Ü‚·
 int GameEndFlag = GAME_CLEAR;
 
+//’e‚Ì‰æ‘œ‚Ìƒnƒ“ƒhƒ‹
+int Tama[TAMA_DIV_MAX];
+int TamaIndex = 0;        //‰æ‘œ‚Ì“Yš
+int TamaChangeCnt = 0;    //‰æ‘œ‚ğ•Ï‚¦‚éƒ^ƒCƒ~ƒ“ƒO
+int TamaChangeCntMax = 30;//‰æ‘œ‚ğ•Ï‚¦‚éƒ^ƒCƒ~ƒ“ƒOMax
+
 //=========================================================
 //     ŠÖ”     
 //=========================================================
@@ -130,6 +139,7 @@ BOOL GameLoad(VOID);                                             //ƒQ[ƒ€‘S‘Ì‚Ìƒ
 VOID GameInit(VOID);                                             //ƒQ[ƒ€ƒf[ƒ^‚Ì‰Šú‰»
 BOOL ImageInput(IMAGE* Image, const char* path);                 //ƒQ[ƒ€‚Ì‰æ‘œ“Ç‚İ‚İ
 BOOL MusicInput(AUDIO* music, const char* path, int volume, int playType);//ƒQ[ƒ€‚ÌBGM“Ç‚İ‚İ
+BOOL LoadImageMem(const char* Path, int* Handle, int xDiv, int yDiv);//ƒQ[ƒ€‚Ìƒ}ƒbƒvƒ`ƒbƒv‚Ì“Ç‚İ‚İ
 
 //=====================================================================================================================
 //          ƒRƒR‚©‚çƒƒCƒ“ƒvƒƒOƒ‰ƒ€          
@@ -237,6 +247,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		ScreenFlip();           //ƒ_ƒuƒ‹ƒoƒbƒtƒ@ƒŠƒ“ƒO‚µ‚½‰æ–Ê‚ğ•`‰æ
 	}
 
+	for (int i = 0; i < TAMA_DIV_MAX; i++) { DeleteGraph(Tama[i]); }
+
 	DxLib_End();				// ‚c‚wƒ‰ƒCƒuƒ‰ƒŠg—p‚ÌI—¹ˆ—
 
 	return 0;				    // ƒ\ƒtƒg‚ÌI—¹ 
@@ -264,8 +276,12 @@ VOID GameInit(VOID)
 /// <returns>“Ç‚İ‚İ¬Œ÷EEETRUEb“Ç‚İ‚İ¸”sEEEFALSE</returns>
 BOOL GameLoad()
 {
+	
+	//ƒ}ƒbƒvƒ`ƒbƒv‚ğ“Ç‚İ‚İ
+	if (!LoadImageMem(".\\image\\tama1.png", &Tama[0], TAMA_DIV_MAX, 1)) { FALSE; }  //’e
 
-	return TRUE;        //‘S•”“Ç‚İ‚ß‚½‚çTRUE
+
+	return TRUE;                    //‘S•”“Ç‚İ‚ß‚½‚çTRUE
 }
 
 
@@ -334,6 +350,69 @@ BOOL MusicInput(AUDIO* music, const char* path, int volume, int playType)
 	music->playType = playType;                          //‰¹Šy‚ğƒ‹[ƒv‚³‚¹‚é
 	music->Volume = volume;                              //MAX‚ª255
 	ChangeVolumeSoundMem(music->Volume, music->handle);  //BGM‚Ìƒ{ƒŠƒ…[ƒ€‚ğ•ÏX
+
+	return TRUE;
+}
+
+
+/// <summary>
+/// ƒ}ƒbƒvƒ`ƒbƒv‚ğƒƒ‚ƒŠ‚É“Ç‚İ‚İ
+/// </summary>
+/// <param name="Path">‰æ‘œ‚ÌƒpƒX</param>
+/// <param name="MapTip">ƒnƒ“ƒhƒ‹”z—ñ‚Ìæ“ªƒAƒhƒŒƒX</param>
+/// <param name="xDiv">‰æ‘œ‚Ì‰¡‚Ì•ªŠ„”</param>
+/// <param name="yDiv">‰æ‘œ‚Ìc‚Ì•ªŠ„”</param>
+/// <returns></returns>
+BOOL LoadImageMem(const char* Path, int* Handle, int xDiv, int yDiv)
+{
+	//’e‚Ì“Ç‚İ‚İ
+	int IsTamaLoad = 1;              //‰æ‘œ‚ª“Ç‚İ‚ß‚½‚©H
+
+	//ˆê“I‚Ég‚¤‰æ‘œ‚Ìƒnƒ“ƒhƒ‹
+	int MaptipHandle = LoadGraph(Path);
+
+	//“Ç‚İ‚İƒGƒ‰[
+	if (MaptipHandle == -1)
+	{
+		MessageBox(
+			GetMainWindowHandle(),   //ƒEƒBƒ“ƒhƒEƒnƒ“ƒhƒ‹
+			Path,              //–{•¶
+			"‰æ‘œ“Ç‚İ‚İƒGƒ‰[",    //ƒ^ƒCƒgƒ‹
+			MB_OK                    //ƒ{ƒ^ƒ“
+		);
+
+		return FALSE;                //“Ç‚İ‚İ¸”s
+	}
+
+	//‰æ‘œ‚Ì•‚Æ‚‚³‚ğæ“¾
+	int TamaWidth = -1;              //•
+	int TamaHeight = -1;             //‚‚³
+	GetGraphSize(MaptipHandle, &TamaWidth, &TamaHeight);
+
+	//•ªŠ„‚µ‚Ä“Ç‚İ‚İ
+	IsTamaLoad = LoadDivGraph(
+		Path,                        //‰æ‘œ‚ÌƒpƒX
+		TAMA_DIV_MAX,                //•ªŠ„‘”
+		4, 1,                        //‰¡‚Æc‚Ì•ªŠ„”
+		TamaWidth / xDiv, TamaHeight / yDiv,//•ªŠ„Œã‚Ì‰æ‘œˆê‚Â•ª‚Ì‘å‚«‚³(X,Y)
+		Handle
+	);
+
+	//•ªŠ„ƒGƒ‰[
+	if (MaptipHandle == -1)
+	{
+		MessageBox(
+			GetMainWindowHandle(),   //ƒEƒBƒ“ƒhƒEƒnƒ“ƒhƒ‹
+			Path,                    //–{•¶
+			"‰æ‘œ•ªŠ„ƒGƒ‰[",        //ƒ^ƒCƒgƒ‹
+			MB_OK                    //ƒ{ƒ^ƒ“
+		);
+
+		return FALSE;                //“Ç‚İ‚İ¸”s
+	}
+
+	//ˆê“I‚É“Ç‚İ‚ñ‚¾‰æ‘œ‚ğ‰ğ•ú
+	DeleteGraph(MaptipHandle);
 
 	return TRUE;
 }
@@ -408,9 +487,30 @@ VOID TitleProc(VOID)
 /// <param name=""></param>
 VOID TitleDraw(VOID)
 {
+	//’e‚Ì•`‰æ
+	DrawGraph(0, 0, Tama[TamaIndex], TRUE);
+
+	if (TamaChangeCnt < TamaChangeCntMax)
+	{
+		TamaChangeCnt++;
+	}
+	else
+	{
+		//’e‚Ì“Yš‚ª’e‚Ì•ªŠ„”‚ÌÅ‘å‚æ‚è‚à¬‚³‚¢‚Æ‚«
+		if (TamaIndex < TAMA_DIV_MAX - 1)
+		{
+			TamaIndex++;         //Ÿ‚Ì‰æ‘œ‚Ö
+		}
+		else
+		{
+			TamaIndex = 0;       //Å‰‚É–ß‚·
+		}
+
+		TamaChangeCnt = 0;
+	}
+	
 
 	DrawString(0, 0, "ƒ^ƒCƒgƒ‹‰æ–Ê", GetColor(0, 0, 0));
-
 	return;
 }
 
@@ -465,7 +565,6 @@ VOID PlayProc(VOID)
 VOID PlayDraw(VOID)
 {
 	DrawString(0, 0, "ƒvƒŒƒC‰æ–Ê", GetColor(0, 0, 0));
-
 	return;
 }
 
@@ -544,7 +643,6 @@ VOID EndDraw(VOID)
 	}
 
 	DrawString(0, 0, "ƒGƒ“ƒh‰æ–Ê", GetColor(0, 0, 0));
-
 	return;
 }
 
@@ -832,4 +930,37 @@ VOID ChangeBGM(AUDIO* music)
 	
 
 	return;
+}
+
+
+//=====================================================================================================================
+//          ƒRƒR‚©‚ç’e‚Ì•`‰æ          
+//=====================================================================================================================
+
+void DrawTama(int &Tama, int DivMax, int ChangeCntMax)
+{
+	int TamaIndex = 0;        //‰æ‘œ‚Ì“Yš
+	int ChangeCnt = 0;        //‰æ‘œ‚ğ•Ï‚¦‚éƒ^ƒCƒ~ƒ“ƒO
+
+	//’e‚Ì•`‰æ
+	DrawGraph(0, 0, Tama + TamaIndex, TRUE);
+
+	if (ChangeCnt < ChangeCntMax)
+	{
+		TamaChangeCnt++;
+	}
+	else
+	{
+		//’e‚Ì“Yš‚ª’e‚Ì•ªŠ„”‚ÌÅ‘å‚æ‚è‚à¬‚³‚¢‚Æ‚«
+		if (TamaIndex < DivMax - 1)
+		{
+			TamaIndex++;         //Ÿ‚Ì‰æ‘œ‚Ö
+		}
+		else
+		{
+			TamaIndex = 0;       //Å‰‚É–ß‚·
+		}
+
+		TamaChangeCnt = 0;
+	}
 }
