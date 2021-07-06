@@ -129,7 +129,7 @@ TAMA Tama1[TAMA_MAX];  //実際に使う
 
 //弾の発射カウンタ
 int tamaShotCnt = 0;
-int tamaShotCntMax = 60;
+int tamaShotCntMax = 10;
 
 //爆発の画像のハンドル
 TAMA Explosion;    //爆発のヤツ
@@ -598,7 +598,8 @@ VOID PlayProc(VOID)
 			//弾を発射(描画)する
 			for (int i = 0; i < TAMA_MAX; i++)
 			{
-				if (Tama1[i].IsDraw == FALSE)
+				if (Tama1[i].IsDraw == FALSE
+					&& tamaShotCntMax - 1 == tamaShotCnt)
 				{
 					//弾を発射する
 					Tama1[i].IsDraw = TRUE;
@@ -614,16 +615,16 @@ VOID PlayProc(VOID)
 					break;
 				}
 			}
+		}
 
-			//弾の発射待ち
-			if (tamaShotCnt < tamaShotCntMax)
-			{
-				tamaShotCnt++;
-			}
-			else
-			{
-				tamaShotCnt = 0;
-			}
+		//弾の発射待ち
+		if (tamaShotCnt < tamaShotCntMax)
+		{
+			tamaShotCnt++;
+		}
+		else
+		{
+			tamaShotCnt = 0;
 		}
 
 		//弾を飛ばす
