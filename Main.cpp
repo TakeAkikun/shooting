@@ -4,9 +4,11 @@
 #include "keyboard.h"   //ƒL[ƒ{[ƒh‚Ìˆ—
 #include "FPS.h"        //FPS‚Ìˆ—
 
+#include <math.h>       //”Šw—p
+
 //ƒ}ƒNƒ’è‹`
 #define TAMA_DIV_MAX   4//’e‚ÌMax’l
-#define TAMA_MAX      10//’e‚Ì‘”
+#define TAMA_MAX      30//’e‚Ì‘”
 
 //=========================================================
 //     \‘¢‘Ì    
@@ -74,13 +76,18 @@ struct TAMA
 
 	int NowIndex = 0;          //Œ»İ‚Ì‰æ‘œ‚Ì—v‘f”
 	
+	int startx;                //X‰ŠúˆÊ’u
+	int starty;                //Y‰ŠúˆÊ’u
+
+	float radius;              //”¼Œa
+	float degree;              //Šp“x
+
 	int x;                     //XˆÊ’u
 	int y;                     //YˆÊ’u
 	int width;                 //•
 	int height;                //‚‚³
 
-	int Xspead;                //’e‚ÌƒXƒs[ƒh(‚˜)
-	int Yspead;                //’e‚ÌƒXƒs[ƒh(‚™)
+	int spead;                //’e‚ÌƒXƒs[ƒh
 
 	RECT coll;                 //“–‚½‚è”»’è(‹éŒ`)
 
@@ -135,6 +142,13 @@ int tamaShotCntMax = 10;
 TAMA Explosion;    //”š”­‚Ìƒ„ƒc
 int ExplosionChangeCntMax = 30; //‰æ‘œ‚ğ•Ï‚¦‚éƒ^ƒCƒ~ƒ“ƒOMax
 
+//ƒvƒŒƒCƒ„[
+CHARACTOR Player;
+
+//“G
+CHARACTOR Enemy;
+int EnemyHP = 30;     //“G‚Ì‘Ì—Í
+
 //=========================================================
 //     ŠÖ”     
 //=========================================================
@@ -172,6 +186,7 @@ BOOL OnCollision(RECT coll1, RECT coll2);                        //“–‚½‚Á‚Ä‚¢‚é‚
 VOID ChangeBGM(AUDIO* music);                                    //BGM‚Ì‰¹—Ê•ÏX
 
 void DrawTama(TAMA* tama);                                       //’e(ƒ}ƒbƒvƒ`ƒbƒv)‚Ì•`‰æ
+VOID ShotTama(TAMA* tama, float deg);                            //’e‚Ì”­Ë
 
 BOOL GameLoad(VOID);                                             //ƒQ[ƒ€‘S‘Ì‚Ìƒf[ƒ^‚ğ“Ç‚İ‚İ
 VOID GameInit(VOID);                                             //ƒQ[ƒ€ƒf[ƒ^‚Ì‰Šú‰»
@@ -288,6 +303,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//“Ç‚İ‚ñ‚¾ƒ}ƒbƒvƒ`ƒbƒv‚ğ‰ğ•ú
 	for (int i = 0; i < TAMA_DIV_MAX; i++) { DeleteGraph(TanaMoto.handle[i]); }
 
+	//I‚í‚é‚Æ‚«‚Ìˆ—
+	DeleteGraph(Player.img.handle);      //‰æ‘œ‚ğƒƒ‚ƒŠã‚©‚çíœ
+	DeleteGraph(Enemy.img.handle);      //
+
 	DxLib_End();				// ‚c‚wƒ‰ƒCƒuƒ‰ƒŠg—p‚ÌI—¹ˆ—
 
 	return 0;				    // ƒ\ƒtƒg‚ÌI—¹ 
@@ -305,10 +324,40 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 /// <param name=""></param>
 VOID GameInit(VOID)
 {
+	//ƒvƒŒƒCƒ„[‚ğ‰Šú‰»
+	Player.img.X = 500;
+	Player.img.Y = 500;
+	Player.Xspead = 300;
+	Player.Yspead = 300;
+	Player.img.IsDraw = TRUE;
 	
+	//“–‚½‚è”»’è‚ğXV
+	CollUpdatePlayer(&Player);  //ƒvƒŒƒCƒ„[‚ÌƒAƒhƒŒƒX
+
+	//“G‚ğ‰Šú‰»
+	Enemy.img.X = 50;
+	Enemy.img.Y = 50;
+	Enemy.Xspead = 7;
+	Enemy.Yspead = 7;
+	Enemy.img.IsDraw = TRUE;
+
+	//“–‚½‚è”»’è‚ÌXV
+	CollUpdate(&Enemy);  //“G‚ÌƒAƒhƒŒƒX
+
+	//’e‚ÌˆÊ’u
 	
+	//ˆÊ’u‚ğ’²®
+	TanaMoto.x = -10; //‰æ–ÊŠO
+	TanaMoto.y = -10; //‰æ–ÊŠO
 
+	//“–‚½‚è”»’è‚ÌXV
+	CollUpdateTama(&TanaMoto);//’e‚ÌƒAƒhƒŒƒX
 
+	//‘S‚Ä‚Ì’e‚Éî•ñ‚ğƒRƒs[
+	for (int i = 0; i < TAMA_MAX; i++)
+	{
+		Tama1[i] = TanaMoto;
+	}
 }
 
 
@@ -333,13 +382,12 @@ BOOL GameLoad()
 	GetGraphSize(TanaMoto.handle[0], &TanaMoto.width, &TanaMoto.height);
 
 	//ˆÊ’u‚ğ’²®
-	TanaMoto.x = GAME_WIDTH / 2 - TanaMoto.width / 2; //‰æ–Ê’†‰›
-	TanaMoto.y = GAME_HEIGHT - TanaMoto.height;       //‰æ–Ê‰º
+	TanaMoto.x = -10; //‰æ–ÊŠO
+	TanaMoto.y = -10; //‰æ–ÊŠO
 
 	//‘¬“x
-	TanaMoto.Xspead = 1;
-	TanaMoto.Yspead = 1;
-
+	TanaMoto.spead = 1;
+	
 	//ƒAƒjƒ[ƒVƒ‡ƒ“‚Ì‘¬“x
 	TanaMoto.AnimeCntMax = 10;
 
@@ -355,6 +403,29 @@ BOOL GameLoad()
 		Tama1[i] = TanaMoto;
 	}
 
+	//ƒvƒŒƒCƒ„[‚ğ‰Šú‰»
+	Player.img.X = 500;
+	Player.img.Y = 500;
+	Player.Xspead = 300;
+	Player.Yspead = 300;
+	Player.img.IsDraw = TRUE;
+
+	//“–‚½‚è”»’è‚ğXV
+	CollUpdatePlayer(&Player);  //ƒvƒŒƒCƒ„[‚Ì“–‚½‚è”»’è‚ÌƒAƒhƒŒƒX
+
+	//“G‚ğ‰Šú‰»
+	Enemy.img.X = 50;
+	Enemy.img.Y = 50;
+	Enemy.Xspead = 7;
+	Enemy.Yspead = 7;
+	Enemy.img.IsDraw = TRUE;
+
+	//“–‚½‚è”»’è‚ÌXV
+	CollUpdate(&Enemy);  //“G‚Ì“–‚½‚è”»’è‚ÌƒAƒhƒŒƒX
+
+	//‰æ‘œ‚ğ“Ç‚İ‚İ
+	if (!ImageInput(&Player.img, ".\\image\\Player.png")) { FALSE; }
+	if (!ImageInput(&Enemy.img, ".\\image\\Enemy.jpeg")) { FALSE; }
 
 	return TRUE;                    //‘S•”“Ç‚İ‚ß‚½‚çTRUE
 }
@@ -598,18 +669,9 @@ VOID PlayProc(VOID)
 			//’e‚ğ”­Ë(•`‰æ)‚·‚é
 			for (int i = 0; i < TAMA_MAX; i++)
 			{
-				if (Tama1[i].IsDraw == FALSE
-					&& tamaShotCntMax - 1 == tamaShotCnt)
+				if (Tama1[i].IsDraw == FALSE)
 				{
-					//’e‚ğ”­Ë‚·‚é
-					Tama1[i].IsDraw = TRUE;
-
-					//’e‚ÌˆÊ’uŒˆ‚ß
-					Tama1[i].x = GAME_WIDTH / 2 - Tama1[i].width / 2;
-					Tama1[i].y = GAME_HEIGHT / 2 - Tama1[i].height / 2;
-
-					//“–‚½‚è”»’è‚ÌXV
-					CollUpdateTama(&Tama1[i]);
+					ShotTama(&Tama1[i], 270.0f);
 
 					//ˆê”­o‚µ‚½‚ç’Eo
 					break;
@@ -627,13 +689,24 @@ VOID PlayProc(VOID)
 			tamaShotCnt = 0;
 		}
 
-		//’e‚ğ”ò‚Î‚·
+		//’e‚ÌˆÚ“®
 		for (int i = 0; i < TAMA_MAX; i++)
 		{
 			if (Tama1[i].IsDraw == TRUE)
 			{
-				//’e‚P‚Ì‚˜
-				Tama1[i].y -= Tama1[i].Yspead;
+				/*
+				//’e‚ÌˆÊ’u‚ğC³
+				            //’†SˆÊ’u@@@@{@”ò‚Î‚·Šp“xË”ò‚Î‚·‹——£‚ğŒvZ@@@@–@‹——£
+				Tama1[i].x = Tama1[i].startx + sin(Tama1[i].degree * DX_PI / 180.0f) * Tama1[i].radius;
+				Tama1[i].y = Tama1[i].starty + sin(Tama1[i].degree * DX_PI / 180.0f) * Tama1[i].radius;
+
+				//”¼Œa‚ğ‘«‚·
+				Tama1[i].radius += Tama1[i].spead;
+				*/
+
+				//’e‚ÌˆÊ’u‚ğC³
+				Tama1[i].x += (Tama1[i].startx - (Enemy.img.X - Enemy.img.width / 2)) * Tama1[i].spead / 3;
+				Tama1[i].y += (Tama1[i].starty - (Enemy.img.Y - Enemy.img.height / 2)) * Tama1[i].spead / 3;
 
 				//‰æ–ÊŠO‚Éo‚½‚ç•`‰æ‚ğ‚â‚ß‚é
 				if (Tama1[i].y + Tama1[i].height < 0 ||
@@ -643,9 +716,100 @@ VOID PlayProc(VOID)
 				{
 					Tama1[i].IsDraw = FALSE;
 				}
+
+				//“–‚½‚è”»’è‚ÌXV
+				CollUpdateTama(&Tama1[i]);
 			}
 		}
 
+		//ƒvƒŒƒCƒ„[‚Ì‘€ì
+
+			//•Ç‚ğ“Ë‚«”²‚¯‚È‚¢‚æ‚¤‚Éif•¶‚ğ’²®
+		if (KeyDown(KEY_INPUT_UP) == TRUE && Player.img.Y > 0)
+		{
+			Player.img.Y -= Player.Yspead * fps.DeltaTime;   //ã‚ÉˆÚ“®
+
+			//ƒXƒs[ƒh‚‚·‚¬‚Ä‚ß‚è‚Ş‚Ì‚ğ–h~
+			if (Player.img.Y < 0)
+			{
+				Player.img.Y = 0;
+			}
+		}
+
+		if (KeyDown(KEY_INPUT_DOWN) == TRUE && Player.img.Y < GAME_HEIGHT - Player.img.height)
+		{
+			Player.img.Y += Player.Yspead * fps.DeltaTime;   //‰º‚ÉˆÚ“®
+
+			//ƒXƒs[ƒh‚‚·‚¬‚Ä‚ß‚è‚Ş‚Ì‚ğ–h~
+			if (Player.img.Y > GAME_HEIGHT - Player.img.height)
+			{
+				Player.img.Y = GAME_HEIGHT - Player.img.height;
+			}
+		}
+
+		if (KeyDown(KEY_INPUT_LEFT) == TRUE && Player.img.X > 0)
+		{
+			Player.img.X -= Player.Xspead * fps.DeltaTime;   //¶‚ÉˆÚ“®
+
+			//ƒXƒs[ƒh‚‚·‚¬‚Ä‚ß‚è‚Ş‚Ì‚ğ–h~
+			if (Player.img.X < 0)
+			{
+				Player.img.X = 0;
+			}
+		}
+
+		if (KeyDown(KEY_INPUT_RIGHT) == TRUE && Player.img.X < GAME_WIDTH - Player.img.width)
+		{
+			Player.img.X += Player.Xspead * fps.DeltaTime;   //‰E‚ÉˆÚ“®
+
+			//ƒXƒs[ƒh‚‚·‚¬‚Ä‚ß‚è‚Ş‚Ì‚ğ–h~
+			if (Player.img.X > GAME_WIDTH - Player.img.width)
+			{
+				Player.img.X = GAME_WIDTH - Player.img.width;
+			}
+		}
+
+		//“G
+		Enemy.img.X += Enemy.Xspead;
+		if (Enemy.img.X < 0 || Enemy.img.X + Enemy.img.width > GAME_WIDTH)
+		{
+			Enemy.Xspead = -Enemy.Xspead;
+		}
+
+		//“–‚½‚è”»’è‚ğXV
+		CollUpdatePlayer(&Player);
+		CollUpdate(&Enemy);
+
+		//Hit”»’è
+		for (int i = 0; i < TAMA_MAX; i++)
+		{
+			if (Enemy.img.IsDraw == TRUE && OnCollision(Tama1[i].coll, Enemy.coll) == TRUE)
+			{
+				EnemyHP--;
+				Tama1[i].IsDraw = FALSE;
+			}
+		}
+
+		if (EnemyHP <= 0)
+		{
+			//ƒV[ƒ“Ø‚è‘Ö‚¦
+			//Ÿ‚ÌƒV[ƒ“‚Ì‰Šú‰»‚ğƒRƒR‚Ås‚¤‚ÆŠy
+
+			//ƒQ[ƒ€ƒNƒŠƒA‚Ì‚Ìƒtƒ‰ƒO‚ğ“ü‚ê‚é
+			GameEndFlag = GAME_CLEAR;
+
+			//ƒQ[ƒ€ƒf[ƒ^‚Ì‰Šú‰»
+			GameInit();
+
+			//“G‚ÌHP‚ğƒŠƒZƒbƒg
+			EnemyHP = 30;
+
+			//ƒGƒ“ƒh‰æ–Ê‚ÉØ‚è‘Ö‚¦
+			ChangeScene(GAME_SCENE_END);
+
+			//ˆ—‚ğ‹­§I—¹
+			return;
+		}
 
 		//ƒGƒ“ƒhƒV[ƒ“‚ÉØ‚è‘Ö‚¦
 		if (KeyClick(KEY_INPUT_RETURN) == TRUE) {
@@ -677,9 +841,40 @@ VOID PlayDraw(VOID)
 		if (Tama1[i].IsDraw == TRUE)
 		{
 			DrawTama(&Tama1[i]);
+
+			if (GAME_DEBUG == TRUE)
+			{
+				//lŠp‚ğ•`‰æ
+				DrawBox(Tama1[i].coll.left, Tama1[i].coll.top, Tama1[i].coll.right, Tama1[i].coll.bottom, GetColor(255, 0, 0), FALSE);
+			}
 		}
 	}
 
+	//ƒvƒŒƒCƒ„[‚Ì•`‰æ
+	if (Player.img.IsDraw == TRUE)
+	{
+		//‰æ‘œ‚ğ•`‰æ
+		DrawGraph(Player.img.X, Player.img.Y, Player.img.handle, TRUE);
+
+		if (GAME_DEBUG == TRUE)
+		{
+			//lŠp‚ğ•`‰æ
+			DrawBox(Player.coll.left, Player.coll.top, Player.coll.right, Player.coll.bottom, GetColor(255, 0, 0), FALSE);
+		}
+	}
+
+	//“G‚P‚Ì•`‰æ
+	if (Enemy.img.IsDraw == TRUE)
+	{
+		//‰æ‘œ‚ğ•`‰æ
+		DrawGraph(Enemy.img.X, Enemy.img.Y, Enemy.img.handle, TRUE);
+
+		if (GAME_DEBUG == TRUE)
+		{
+			//lŠp‚ğ•`‰æ
+			DrawBox(Enemy.coll.left, Enemy.coll.top, Enemy.coll.right, Enemy.coll.bottom, GetColor(255, 0, 0), FALSE);
+		}
+	}
 
 	DrawString(0, 0, "ƒvƒŒƒC‰æ–Ê", GetColor(0, 0, 0));
 	return;
@@ -719,6 +914,38 @@ void DrawTama(TAMA* tama)
 			tama->AnimeCnt = 0;
 		}
 	}
+}
+
+
+//=====================================================================================================================
+//          ƒRƒR‚©‚ç’e‚ğ”ò‚Î‚·          
+//=====================================================================================================================
+
+/// <summary>
+/// ’e‚ğ”ò‚Î‚·ŠÖ”
+/// </summary>
+/// <param name="tama"></param>
+/// <param name="deg"></param>
+VOID ShotTama(TAMA* tama, float deg)
+{
+		//’e‚ğ”­Ë‚·‚é
+		tama->IsDraw = TRUE;
+
+		//’e‚ÌˆÊ’uŒˆ‚ß
+		tama->startx = Player.img.X + Player.img.width / 2 - tama->width / 2;
+		tama->starty = Player.img.Y;
+
+		//’e‚Ì‘¬“xŒˆ‚ß
+		tama->spead = 6;
+
+		//’e‚ÌŠp“xŒˆ‚ß
+		tama->degree = deg;
+
+		//’e‚Ì”¼ŒaŒˆ‚ß
+		tama->radius = 0.0f;
+
+		//’e‚Ì“–‚½‚è”»’è‚ğXV
+		CollUpdateTama(tama);
 }
 
 
@@ -997,16 +1224,16 @@ VOID ChangeDraw(VOID)
 /// <param name="coll">“–‚½‚è”»’è‚Ì—Ìˆæ</param>
 VOID CollUpdatePlayer(CHARACTOR* chara)
 {
-	chara->coll.left = chara->img.X;
+	chara->coll.left = chara->img.X + 40;
 	chara->coll.top = chara->img.Y;
-	chara->coll.right = chara->img.X + chara->img.width;
+	chara->coll.right = chara->img.X + chara->img.width - 40;
 	chara->coll.bottom = chara->img.Y + chara->img.height;
 
 	return;
 }
 
 /// <summary>
-/// “–‚½‚è”»’è‚Ì—ÌˆæXV(ƒvƒŒƒCƒ„[)
+/// “–‚½‚è”»’è‚Ì—ÌˆæXV
 /// </summary>
 /// <param name="coll">“–‚½‚è”»’è‚Ì—Ìˆæ</param>
 VOID CollUpdate(CHARACTOR* chara)
