@@ -137,6 +137,7 @@ TAMA Tama1[TAMA_MAX];  //実際に使う
 //弾の発射カウンタ
 int tamaShotCnt = 0;
 int tamaShotCntMax = 10;
+BOOL tamaAutoFlag = FALSE;
 
 //爆発の画像のハンドル
 TAMA Explosion;    //爆発のヤツ
@@ -666,27 +667,58 @@ VOID PlayProc(VOID)
 		//スペースキーを押しているとき
 		if (KeyDown(KEY_INPUT_SPACE) == TRUE)
 		{
-			//弾を発射(描画)する
-			for (int i = 0; i < TAMA_MAX; i++)
+			if (tamaShotCnt == 0)
 			{
-				if (Tama1[i].IsDraw == FALSE)
+				/*
+				//弾を発射(描画)する
+				for (int i = 0; i < TAMA_MAX; i++)
 				{
-					ShotTama(&Tama1[i], 270.0f);
+					if (Tama1[i].IsDraw == FALSE)
+					{
+						//一応仮の角度を入れておく
+						ShotTama(&Tama1[i], 270.0f);
 
-					//一発出したら脱出
-					break;
+						//一発出したら脱出
+						break;
+					}
+				}
+				*/
+				//弾を発射(描画)する
+				for (int i = 0; i < TAMA_MAX; i++)
+				{
+					if (Tama1[i].IsDraw == FALSE)
+					{
+						//一応仮の角度を入れておく
+						ShotTama(&Tama1[i], 315.0f);
+
+						//一発出したら脱出
+						break;
+					}
+				}
+
+				//弾を発射(描画)する
+				for (int i = 0; i < TAMA_MAX; i++)
+				{
+					if (Tama1[i].IsDraw == FALSE)
+					{
+						//一応仮の角度を入れておく
+						ShotTama(&Tama1[i], 225.0f);
+
+						//一発出したら脱出
+						break;
+					}
 				}
 			}
-		}
 
-		//弾の発射待ち
-		if (tamaShotCnt < tamaShotCntMax)
-		{
-			tamaShotCnt++;
-		}
-		else
-		{
-			tamaShotCnt = 0;
+			//弾の発射待ち
+			if (tamaShotCnt < tamaShotCntMax)
+			{
+				tamaShotCnt++;
+			}
+			else
+			{
+				tamaShotCnt = 0;
+			}
 		}
 
 		//弾の移動
@@ -694,19 +726,57 @@ VOID PlayProc(VOID)
 		{
 			if (Tama1[i].IsDraw == TRUE)
 			{
-				/*
-				//弾の位置を修正
-				            //中心位置　　　　＋　飛ばす角度⇒飛ばす距離を計算　　　　＊　距離
-				Tama1[i].x = Tama1[i].startx + sin(Tama1[i].degree * DX_PI / 180.0f) * Tama1[i].radius;
-				Tama1[i].y = Tama1[i].starty + sin(Tama1[i].degree * DX_PI / 180.0f) * Tama1[i].radius;
+				if (tamaAutoFlag == FALSE && Tama1[i].y > Tama1[i].starty - 100)
+				{
+					Tama1[i].x = Tama1[i].startx + cos(Tama1[i].degree * DX_PI / 180.0f) * Tama1[i].radius;
+					Tama1[i].y = Tama1[i].starty + sin(Tama1[i].degree * DX_PI / 180.0f) * Tama1[i].radius;
 
-				//半径を足す
-				Tama1[i].radius += Tama1[i].spead;
-				*/
+					//半径を足す
+					Tama1[i].radius += Tama1[i].spead;
+				}
 
-				//弾の位置を修正
-				Tama1[i].x += (Tama1[i].startx - (Enemy.img.X - Enemy.img.width / 2)) * Tama1[i].spead / 3;
-				Tama1[i].y += (Tama1[i].starty - (Enemy.img.Y - Enemy.img.height / 2)) * Tama1[i].spead / 3;
+				if (tamaAutoFlag == FALSE && Tama1[i].y < Tama1[i].starty - 100)
+				{
+					Tama1[i].startx = Tama1[i].x;
+					Tama1[i].starty = Tama1[i].y;
+					Tama1[i].radius = 0.0f;
+
+					tamaAutoFlag = TRUE;
+				}
+
+				if (tamaAutoFlag == TRUE)
+				{
+					/*
+					//弾の位置を修正
+								//中心位置　　　　＋　飛ばす角度⇒飛ばす距離を計算　　　　＊　距離
+					Tama1[i].x = Tama1[i].startx + cos(Tama1[i].degree * DX_PI / 180.0f) * Tama1[i].radius;
+					Tama1[i].y = Tama1[i].starty + sin(Tama1[i].degree * DX_PI / 180.0f) * Tama1[i].radius;
+					*/
+
+					//直角三角形の底辺
+					//((Enemy.img.X + Enemy.img.width / 2) - (Tama1[i].startx + Tama1[i].width / 2))
+					//直角三角形の高さ
+					//((Tama1[i].starty + Tama1[i].height / 2) - (Enemy.img.Y + Enemy.img.height / 2))
+					//直角三角形の斜辺(三平方の定理を使用)
+					//sqrt((((Enemy.img.X + Enemy.img.width / 2) - (Tama1[i].startx + Tama1[i].width / 2)) * ((Enemy.img.X + Enemy.img.width / 2) - (Tama1[i].startx + Tama1[i].width / 2))) + 
+					//(((Tama1[i].starty + Tama1[i].height / 2) - (Enemy.img.Y + Enemy.img.height / 2)) * ((Tama1[i].starty + Tama1[i].height / 2) - (Enemy.img.Y + Enemy.img.height / 2))))
+
+					Tama1[i].x = Tama1[i].startx +
+						//底辺 / 斜辺でcosを求める
+						(((Enemy.img.X + Enemy.img.width / 2) - (Tama1[i].startx + Tama1[i].width / 2)) /
+							sqrt((((Enemy.img.X + Enemy.img.width / 2) - (Tama1[i].startx + Tama1[i].width / 2)) * ((Enemy.img.X + Enemy.img.width / 2) - (Tama1[i].startx + Tama1[i].width / 2)) +
+								(((Tama1[i].starty + Tama1[i].height / 2) - (Enemy.img.Y + Enemy.img.height / 2)) * ((Tama1[i].starty + Tama1[i].height / 2) - (Enemy.img.Y + Enemy.img.height / 2))))))
+						* Tama1[i].radius;
+					Tama1[i].y = Tama1[i].starty -
+						//高さ / 斜辺でsinを求める
+						(((Tama1[i].starty + Tama1[i].height / 2) - (Enemy.img.Y + Enemy.img.height / 2)) /
+							sqrt((((Enemy.img.X + Enemy.img.width / 2) - (Tama1[i].startx + Tama1[i].width / 2)) * ((Enemy.img.X + Enemy.img.width / 2) - (Tama1[i].startx + Tama1[i].width / 2))) +
+								(((Tama1[i].starty + Tama1[i].height / 2) - (Enemy.img.Y + Enemy.img.height / 2)) * ((Tama1[i].starty + Tama1[i].height / 2) - (Enemy.img.Y + Enemy.img.height / 2)))))
+						* Tama1[i].radius;
+
+					//半径を足す
+					Tama1[i].radius += Tama1[i].spead;
+				}
 
 				//画面外に出たら描画をやめる
 				if (Tama1[i].y + Tama1[i].height < 0 ||
@@ -715,6 +785,7 @@ VOID PlayProc(VOID)
 					Tama1[i].x > GAME_WIDTH)
 				{
 					Tama1[i].IsDraw = FALSE;
+					tamaAutoFlag = FALSE;
 				}
 
 				//当たり判定の更新
@@ -783,10 +854,11 @@ VOID PlayProc(VOID)
 		//Hit判定
 		for (int i = 0; i < TAMA_MAX; i++)
 		{
-			if (Enemy.img.IsDraw == TRUE && OnCollision(Tama1[i].coll, Enemy.coll) == TRUE)
+			if (Enemy.img.IsDraw == TRUE && Tama1[i].IsDraw == TRUE && OnCollision(Tama1[i].coll, Enemy.coll) == TRUE)
 			{
 				EnemyHP--;
 				Tama1[i].IsDraw = FALSE;
+				tamaAutoFlag = FALSE;
 			}
 		}
 
@@ -924,8 +996,8 @@ void DrawTama(TAMA* tama)
 /// <summary>
 /// 弾を飛ばす関数
 /// </summary>
-/// <param name="tama"></param>
-/// <param name="deg"></param>
+/// <param name="tama">TAMA構造体のアドレス</param>
+/// <param name="deg">角度</param>
 VOID ShotTama(TAMA* tama, float deg)
 {
 		//弾を発射する
@@ -934,6 +1006,10 @@ VOID ShotTama(TAMA* tama, float deg)
 		//弾の位置決め
 		tama->startx = Player.img.X + Player.img.width / 2 - tama->width / 2;
 		tama->starty = Player.img.Y;
+
+		//初めの位置を弾の位置に設定
+		tama->x = tama->startx;
+		tama->y = tama->starty;
 
 		//弾の速度決め
 		tama->spead = 6;
