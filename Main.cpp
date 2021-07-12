@@ -136,7 +136,7 @@ TAMA Tama1[TAMA_MAX];  //実際に使う
 
 //弾の発射カウンタ
 int tamaShotCnt = 0;
-int tamaShotCntMax = 10;
+int tamaShotCntMax = 30;
 BOOL tamaAutoFlag = FALSE;
 
 //爆発の画像のハンドル
@@ -675,7 +675,7 @@ VOID PlayProc(VOID)
 				{
 					if (Tama1[i].IsDraw == FALSE)
 					{
-						//一応仮の角度を入れておく
+						//角度を入れておく
 						ShotTama(&Tama1[i], 270.0f);
 
 						//一発出したら脱出
@@ -688,7 +688,7 @@ VOID PlayProc(VOID)
 				{
 					if (Tama1[i].IsDraw == FALSE)
 					{
-						//一応仮の角度を入れておく
+						//角度を入れておく
 						ShotTama(&Tama1[i], 315.0f);
 
 						//一発出したら脱出
@@ -701,7 +701,7 @@ VOID PlayProc(VOID)
 				{
 					if (Tama1[i].IsDraw == FALSE)
 					{
-						//一応仮の角度を入れておく
+						//角度を入れておく
 						ShotTama(&Tama1[i], 225.0f);
 
 						//一発出したら脱出
@@ -753,6 +753,8 @@ VOID PlayProc(VOID)
 					Tama1[i].y = Tama1[i].starty + sin(Tama1[i].degree * DX_PI / 180.0f) * Tama1[i].radius;
 					*/
 
+					/*
+					自分のやり方（ちょーめんどくさい）
 					//直角三角形の底辺
 					//((Enemy.img.X + Enemy.img.width / 2) - (Tama1[i].startx + Tama1[i].width / 2))
 					//直角三角形の高さ
@@ -773,6 +775,15 @@ VOID PlayProc(VOID)
 							sqrt((((Enemy.img.X + Enemy.img.width / 2) - (Tama1[i].startx + Tama1[i].width / 2)) * ((Enemy.img.X + Enemy.img.width / 2) - (Tama1[i].startx + Tama1[i].width / 2))) +
 								(((Tama1[i].starty + Tama1[i].height / 2) - (Enemy.img.Y + Enemy.img.height / 2)) * ((Tama1[i].starty + Tama1[i].height / 2) - (Enemy.img.Y + Enemy.img.height / 2)))))
 						* Tama1[i].radius;
+					*/
+
+					//atan2・・・直角三角形の斜辺以外の2辺から角度を出してくれるすごいヤツ
+					Tama1[i].degree = atan2(Enemy.img.Y - Tama1[i].starty, Enemy.img.X - Tama1[i].startx);
+
+					//弾の位置を修正
+								//中心位置　　　＋　飛ばす角度⇒飛ばす距離を計算　＊　距離
+					Tama1[i].x = Tama1[i].startx + cos(Tama1[i].degree) * Tama1[i].radius;
+					Tama1[i].y = Tama1[i].starty + sin(Tama1[i].degree) * Tama1[i].radius;
 
 					//半径を足す
 					Tama1[i].radius += Tama1[i].spead;
