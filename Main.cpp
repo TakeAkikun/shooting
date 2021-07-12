@@ -9,6 +9,8 @@
 //マクロ定義
 #define TAMA_DIV_MAX   4//弾のMax値
 #define TAMA_MAX      30//弾の総数
+#define TEKI_KIND      8//敵の種類
+#define TEKI_MAX      10//敵の総数
 
 //=========================================================
 //     構造体    
@@ -143,10 +145,15 @@ BOOL tamaAutoFlag = FALSE;
 TAMA Explosion;    //爆発のヤツ
 int ExplosionChangeCntMax = 30; //画像を変えるタイミングMax
 
+//背景画像
+IMAGE back[2]; //背景は2つの画像
+
 //プレイヤー
 CHARACTOR Player;
 
 //敵
+CHARACTOR Teki_Moto[TEKI_KIND];
+CHARACTOR teki[TEKI_MAX];
 CHARACTOR Enemy;
 int EnemyHP = 30;     //敵の体力
 
@@ -306,7 +313,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	//終わるときの処理
 	DeleteGraph(Player.img.handle);      //画像をメモリ上から削除
-	DeleteGraph(Enemy.img.handle);      //
+	DeleteGraph(Enemy.img.handle);       //
+	DeleteGraph(back[0].handle);         //
+	DeleteGraph(back[1].handle);         //
 
 	DxLib_End();				// ＤＸライブラリ使用の終了処理
 
@@ -344,6 +353,14 @@ VOID GameInit(VOID)
 
 	//当たり判定の更新
 	CollUpdate(&Enemy);  //敵のアドレス
+
+	//背景画像の位置
+	back[0].X = 0;
+	back[0].Y = -back[0].height;
+	back[0].IsDraw = TRUE;
+	back[1].X = 0;
+	back[1].Y = 0;
+	back[1].IsDraw = TRUE;
 
 	//弾の位置
 	
@@ -424,9 +441,19 @@ BOOL GameLoad()
 	//当たり判定の更新
 	CollUpdate(&Enemy);  //敵の当たり判定のアドレス
 
+	//背景画像の位置
+	back[0].X = 0;
+	back[0].Y = -back[0].height;
+	back[0].IsDraw = TRUE;
+	back[1].X = 0;
+	back[1].Y = 0;
+	back[1].IsDraw = TRUE;
+
 	//画像を読み込み
 	if (!ImageInput(&Player.img, ".\\image\\Player.png")) { FALSE; }
 	if (!ImageInput(&Enemy.img, ".\\image\\Enemy.jpeg")) { FALSE; }
+	if (!ImageInput(&back[0], ".\\image\\hoshi.jpg")) { FALSE; }
+	if (!ImageInput(&back[1], ".\\image\\hoshi_rev.jpg")) { FALSE; }
 
 	return TRUE;                    //全部読み込めたらTRUE
 }
@@ -917,6 +944,22 @@ VOID PlayProc(VOID)
 /// <param name=""></param>
 VOID PlayDraw(VOID)
 {
+	//背景の描画
+	for (int i = 0; i < 2; i++)
+	{
+		//背景を描画
+		DrawGraph(back[i].X, back[i].Y, back[i].handle, TRUE);
+
+		//画像が下まで下がった時
+		if (back[i].Y > GAME_HEIGHT)
+		{
+			back[i].Y = -back[i].height + 1;
+		}
+
+		//画像を動かす
+		back[i].Y++;
+	}
+
 	//弾の描画
 	for (int i = 0; i < TAMA_MAX; i++)
 	{
