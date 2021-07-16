@@ -4,6 +4,9 @@
 #include "keyboard.h"   //キーボードの処理
 #include "FPS.h"        //FPSの処理
 
+#include "mouse.h"      //マウスの処理
+#include "shape.h"      //図形の処理
+
 #include <math.h>       //数学用
 
 //マクロ定義
@@ -280,8 +283,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 		AllKeyUpdate();         //キーボード入力の更新
 
-		//FPS値の更新
-		FPSUpdate();
+		MouseUpdate();          //マウス入力の更新
+		
+		FPSUpdate();            //FPS値の更新
 
 		//ESCキーで強制終了
 		if (KeyClick(KEY_INPUT_ESCAPE) == TRUE) { break; }
@@ -699,6 +703,9 @@ VOID TitleProc(VOID)
 			//プレイ画面に切り替え
 			ChangeScene(GAME_SCENE_PLAY);
 
+			//マウスは描画しない
+			SetMouseDispFlag(FALSE);
+
 			return;
 		}
 	}
@@ -744,7 +751,9 @@ VOID PlayProc(VOID)
 	if (MenuFlag == FALSE && TipsFlag == FALSE)
 	{
 		//スペースキーを押しているとき
-		if (KeyDown(KEY_INPUT_SPACE) == TRUE)
+		//if (KeyDown(KEY_INPUT_SPACE) == TRUE)
+
+		if (MouseDown(MOUSE_INPUT_LEFT) == TRUE)
 		{
 			if (tamaShotCnt == 0)
 			{
@@ -965,6 +974,7 @@ VOID PlayProc(VOID)
 			}
 		}
 
+		/*
 		//プレイヤーの操作
 
 			//壁を突き抜けないようにif文を調整
@@ -1011,6 +1021,11 @@ VOID PlayProc(VOID)
 				Player.img.X = GAME_WIDTH - Player.img.width;
 			}
 		}
+		*/
+
+		//マウスの位置にプレイヤーを置く(マウスの位置を画像の中心にする)
+		Player.img.X = mouse.Point.x - Player.img.width / 2;
+		Player.img.Y = mouse.Point.y - Player.img.height / 2;
 
 		//敵
 		Enemy.img.X += Enemy.Xspead;
@@ -1094,6 +1109,10 @@ VOID PlayProc(VOID)
 			//エンド画面に切り替え
 			ChangeScene(GAME_SCENE_END);
 
+			//マウスを描画
+			SetMouseDispFlag(TRUE);
+
+			return;
 		}
 	}
 
@@ -1196,6 +1215,9 @@ VOID PlayDraw(VOID)
 	SetFontSize(40);
 	DrawFormatString(0, 100, GetColor(255, 255, 255), "SCORE：%05d", Score);
 	SetFontSize(old);
+
+	//マウスの位置を描画
+	MouseDraw();
 
 	DrawString(0, 0, "プレイ画面", GetColor(0, 0, 0));
 	return;
