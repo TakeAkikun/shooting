@@ -143,7 +143,7 @@ TAMA Tama2[TAMA_MAX];  //
 //弾の発射カウンタ
 int tamaShotCnt = 0;
 int tamaShotCnt2 = 0;
-int tamaShotCntMax = 100;
+int tamaShotCntMax = 80;
 int tamaShotCntMax2 = 10;
 BOOL tamaAutoFlag = FALSE;
 
@@ -826,7 +826,8 @@ VOID PlayProc(VOID)
 		{
 			if (Tama1[i].IsDraw == TRUE)
 			{
-				if (tamaAutoFlag == FALSE && Tama1[i].y > Tama1[i].starty - 100)
+				//ノーマルモード
+				if (tamaAutoFlag == FALSE)
 				{
 					Tama1[i].x = Tama1[i].startx + cos(Tama1[i].degree * DX_PI / 180.0f) * Tama1[i].radius;
 					Tama1[i].y = Tama1[i].starty + sin(Tama1[i].degree * DX_PI / 180.0f) * Tama1[i].radius;
@@ -835,15 +836,21 @@ VOID PlayProc(VOID)
 					Tama1[i].radius += Tama1[i].spead;
 				}
 
+				//モード切り替え
 				if (tamaAutoFlag == FALSE && Tama1[i].y <= Tama1[i].starty - 100)
 				{
 					Tama1[i].startx = Tama1[i].x;
 					Tama1[i].starty = Tama1[i].y;
 					Tama1[i].radius = 0.0f;
 
-					tamaAutoFlag = TRUE;
+					//敵が描画されているときのみ追尾モードにする
+					if (Enemy.img.IsDraw == TRUE)
+					{
+						tamaAutoFlag = TRUE;
+					}
 				}
 
+				//追尾モード
 				if (tamaAutoFlag == TRUE)
 				{
 					/*
@@ -871,7 +878,7 @@ VOID PlayProc(VOID)
 					*/
 
 					//atan2・・・直角三角形の斜辺以外の2辺から角度を出してくれるすごいヤツ
-					Tama1[i].degree = (int)atan2(Enemy.img.Y - Tama1[i].starty, Enemy.img.X - Tama1[i].startx) / DX_PI * 180.0f;
+					Tama1[i].degree = atan2(Enemy.img.Y - Tama1[i].starty, Enemy.img.X - Tama1[i].startx) / DX_PI * 180.0f;
 
 					//弾の位置を修正
 								//中心位置　　　＋　飛ばす角度⇒飛ばす距離を計算　＊　距離
@@ -1047,7 +1054,7 @@ VOID PlayProc(VOID)
 				Tama1[i].IsDraw = FALSE;
 				tamaAutoFlag = FALSE;
 
-				Score++;
+				Score += 10;
 			}
 			
 			if (Enemy.img.IsDraw == TRUE && Tama2[i].IsDraw == TRUE && OnCollision(Tama2[i].coll, Enemy.coll) == TRUE)
@@ -1056,7 +1063,7 @@ VOID PlayProc(VOID)
 				Tama2[i].IsDraw = FALSE;
 				tamaAutoFlag = FALSE;
 
-				Score++;
+				Score += 10;
 			}
 		}
 
@@ -1089,6 +1096,8 @@ VOID PlayProc(VOID)
 
 		if (EnemyHP <= 0)
 		{
+			Score += 50;
+			
 			Enemy.img.IsDraw = FALSE;
 
 			//敵のHPをリセット
