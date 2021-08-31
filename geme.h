@@ -10,9 +10,6 @@
 #define GAME_HEIGHT  720             //ゲーム画面の幅
 #define GAME_COLOR   32              //ゲーム画面の色数
 
-#define GAME_OVER    44444           //ゲームオーバーの時のフラグ
-#define GAME_CLEAR   77777           //ゲームクリアの時のフラグ
-
 #define GAME_ICON_ID 333             //ゲームのアイコンのID
 
 #define GAME_WINDOW_BAR 0            //ウィンドウバーの種類

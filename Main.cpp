@@ -125,15 +125,17 @@ GAME_SCENE GameScene;       //現在のゲームのシーン
 GAME_SCENE OldGameScene;    //前回のゲームのシーン
 GAME_SCENE NextGameScene;   //次回のゲームのシーン
 
+//タイトルロゴのだんだん濃くなるアレ
+float TitleLogoCnt = 0;           //カウンタ
+BOOL TitleLogoBrink = FALSE;      //完全に表示されたか？
+
+//PushEnterの点滅
+int PushEnterCnt = 0;           //カウンタ
+const int PushEnterCntMax = 60; //カウンタMAX
+BOOL PushEnterBrink = FALSE;    //点滅しているか？
+
 //メニュー欄の表示フラグ
 BOOL MenuFlag = FALSE;    //メニュー欄を表示するか？
-
-//ヒント欄の表示フラグ
-BOOL TipsFlag = FALSE;    //ヒント欄を表示するか？
-
-//エンド画面の時のフラグ
-//最初はクリアを入れておきます
-int GameEndFlag = GAME_CLEAR;
 
 //弾の画像
 TAMA TanaMoto;         //元
@@ -151,8 +153,24 @@ BOOL tamaAutoFlag = FALSE;
 TAMA Explosion;    //爆発のヤツ
 int ExplosionChangeCntMax = 30; //画像を変えるタイミングMax
 
-//背景画像
+//ロゴと背景
+IMAGE TitleLogo;        //タイトルロゴ
+IMAGE TitleEnter;       //PushEnterのロゴ
+IMAGE TitleImg;         //タイトル画面の背景
+IMAGE EndImg;           //エンド画面の背景
+IMAGE EndScore;         //エンド画面のスコア
+IMAGE MenuIcon;         //メニューのアイコン
+IMAGE MenuIconPushVer;  //メニュー画面を開いている時のアイコン
+IMAGE MenuScreen;       //メニュー画面
+IMAGE VolumePointer;    //音量調整の時の移動するひし形のアレ
+
+//背景画像(プレイ画面)
 IMAGE back[2]; //背景は2つの画像
+
+//音関係
+AUDIO TitleBGM;         //タイトルのBGM
+AUDIO PlayBGM;          //プレイのBGM
+AUDIO EndBGM;           //エンドのBGM
 
 //プレイヤー
 CHARACTOR Player;
@@ -208,7 +226,7 @@ VOID ChangeDraw(VOID);				                             //切り替え画面（描画）
 VOID DrawMenu(int Volum);			                             //メニュー画面（描画）
 VOID DrawTips(VOID);				                             //ヒント画面（描画）
 
-VOID ChangeScene(GAME_SCENE seane);                              //シーン切り替え
+VOID ChangeScene(GAME_SCENE seane, AUDIO* OldBGM, AUDIO* NextBGM);//シーン切り替え
 
 VOID CollUpdatePlayer(CHARACTOR* chara);                         //当たり判定の領域を更新(プレイヤー)
 VOID CollUpdateEnemy(CHARACTOR* chara);                          //当たり判定の領域を更新(敵)
@@ -343,9 +361,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	DeleteGraph(Enemy.img.handle);       //
 	DeleteGraph(back[0].handle);         //
 	DeleteGraph(back[1].handle);         //
+	DeleteGraph(TitleImg.handle);        //
+	DeleteGraph(TitleLogo.handle);       //
+	DeleteGraph(TitleEnter.handle);      //
+	DeleteGraph(EndImg.handle);          //
+	DeleteGraph(EndScore.handle);        //
+	DeleteGraph(MenuIcon.handle);        //
+	DeleteGraph(MenuIconPushVer.handle); //
+	DeleteGraph(MenuScreen.handle);      //
+	DeleteGraph(VolumePointer.handle);   //
 	for (int i = 0; i < TEKI_KIND; i++) {
 		DeleteGraph(Teki_Moto[i].img.handle);
 	}
+	DeleteGraph(TitleBGM.handle);        //音楽をメモリ上から削除
+	DeleteGraph(PlayBGM.handle);         //
+	DeleteGraph(EndBGM.handle);          //
 
 	DxLib_End();				// ＤＸライブラリ使用の終了処理
 
@@ -364,8 +394,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 /// <param name=""></param>
 VOID GameInit(VOID)
 {
-	//ゲームスコアの初期化
-	Score = 0;
 
 	//プレイヤーを初期化
 	Player.img.X = 500;
@@ -419,6 +447,42 @@ VOID GameInit(VOID)
 		Tama1[i] = TanaMoto;
 		Tama2[i] = TanaMoto;
 	}
+
+	//タイトルロゴの位置
+	TitleLogo.X = GAME_WIDTH / 2 - TitleLogo.width / 2;  //中央揃え
+	TitleLogo.Y = 10;
+
+	//タイトルロゴのだんだん濃くなるアレ
+	TitleLogoCnt = 0;          //カウンタ
+	TitleLogoBrink = FALSE;    //完全に表示されたか？
+
+	//PushEnterの位置
+	TitleEnter.X = GAME_WIDTH / 2 - TitleEnter.width / 2;//中央揃え
+	TitleEnter.Y = GAME_HEIGHT - TitleEnter.height - 100;
+
+	//PushEnterの点滅
+	PushEnterCnt = 0;         //カウンタ
+	PushEnterBrink = FALSE;  //点滅しているか？
+
+	//メニューアイコンの位置
+	MenuIcon.X = GAME_WIDTH - MenuIcon.width - 10;          //右上
+	MenuIcon.Y = 10;                                        //
+
+	//メニュー画面が開いているときのメニューアイコンの位置
+	MenuIconPushVer.X = GAME_WIDTH - MenuIconPushVer.width - 10;   //メニューアイコンと同じ位置
+	MenuIconPushVer.Y = 10;                                        //
+
+	//メニュー画面の位置
+	MenuScreen.X = GAME_WIDTH / 2 + 112;                     //大分右
+	MenuScreen.Y = 0;                                       //
+
+	//音量調整の動くヤツの位置
+	VolumePointer.X = GAME_WIDTH / 2 + 320;                 //丁度Volumeのバーの一番右に重なるように
+	VolumePointer.Y = 215;                                  //
+
+	//タイトルロゴの位置
+	EndScore.X = GAME_WIDTH / 2 - EndScore.width / 2;       //中央揃え
+	EndScore.Y = 10;
 }
 
 
@@ -500,6 +564,20 @@ BOOL GameLoad()
 	if (!ImageInput(&Enemy.img, ".\\image\\Enemy.jpeg")) { FALSE; }
 	if (!ImageInput(&back[0], ".\\image\\hoshi.jpg")) { FALSE; }
 	if (!ImageInput(&back[1], ".\\image\\hoshi_rev.jpg")) { FALSE; }
+	if (!ImageInput(&TitleImg, ".\\image\\Logo\\TitleHaikei.jpg")) { FALSE; }
+	if (!ImageInput(&TitleLogo, ".\\image\\Logo\\TitleLogo.png")) { FALSE; }
+	if (!ImageInput(&TitleEnter, ".\\image\\Logo\\PushEnter.png")) { FALSE; }
+	if (!ImageInput(&EndImg, ".\\image\\Logo\\EndHaikei.jpeg")) { FALSE; }
+	if (!ImageInput(&EndScore, ".\\image\\Logo\\Score.png")) { FALSE; }
+	if (!ImageInput(&MenuIcon, ".\\image\\Logo\\gear.png")) { FALSE; }
+	if (!ImageInput(&MenuIconPushVer, ".\\image\\Logo\\gearPush.png")) { FALSE; }
+	if (!ImageInput(&MenuScreen, ".\\image\\Logo\\menu.png")) { FALSE; }
+	if (!ImageInput(&VolumePointer, ".\\image\\Logo\\volumePointer.png")) { FALSE; }
+
+	//音楽を読み込み
+	if (!MusicInput(&TitleBGM, ".\\sound\\TitleBGM.mp3", 150, DX_PLAYTYPE_LOOP)) { return FALSE; }
+	if (!MusicInput(&PlayBGM, ".\\sound\\PlayBGM.mp3", 150, DX_PLAYTYPE_LOOP)) { return FALSE; }
+	if (!MusicInput(&EndBGM, ".\\sound\\EndBGM.mp3", 150, DX_PLAYTYPE_LOOP)) { return FALSE; }
 
 	//敵の画像
 	for (int i = 0; i < TEKI_KIND; i++)
@@ -656,11 +734,15 @@ BOOL LoadImageMem(const char* Path, int* Handle, int xDiv, int yDiv)
 /// シーンを切り替える関数
 /// </summary>
 /// <param name="scene"></param>
-VOID ChangeScene(GAME_SCENE scene)
+VOID ChangeScene(GAME_SCENE scene, AUDIO* OldBGM, AUDIO* NextBGM)
 {
 	GameScene = scene;  //シーン切り替え
 	IsFadeIn = FALSE;             //フェードインしない
 	IsFadeOut = TRUE;             //フェードアウトする
+
+	//前のシーンのBGMの音量を次のBGMに引継ぎ
+	NextBGM->Volume = OldBGM->Volume;
+	ChangeVolumeSoundMem(NextBGM->Volume, NextBGM->handle);
 
 	return;
 }
@@ -688,9 +770,40 @@ VOID Title(VOID)
 /// <param name=""></param>
 VOID TitleProc(VOID)
 {
-	//メニュー画面とヒント画面が開いていない時限定
-	if (MenuFlag == FALSE && TipsFlag == FALSE)
+	//メニュー画面が開いていない時限定
+	if (MenuFlag == FALSE)
 	{
+		//タイトルロゴの降りてくる演出
+		//Max値まで待つ
+		if (TitleLogoCnt < TitleLogo.Y)
+		{
+			TitleLogoCnt += 0.1;
+		}
+		else
+		{
+
+			TitleLogoBrink = TRUE;
+		}
+
+		//タイトルロゴの演出が終わった後に表示
+		if (TitleLogoBrink == TRUE)
+		{
+
+			//PushEnterの点滅
+			//MAX値まで待つ
+			if (PushEnterCnt < PushEnterCntMax)
+			{
+				PushEnterCnt++;
+			}
+			else
+			{
+				if (PushEnterBrink == TRUE) PushEnterBrink = FALSE;
+				else if (PushEnterBrink == FALSE) PushEnterBrink = TRUE;
+
+				PushEnterCnt = 0;
+			}
+
+		}
 
 		//プレイシーンに切り替え
 		if (KeyClick(KEY_INPUT_RETURN) == TRUE) {
@@ -700,8 +813,11 @@ VOID TitleProc(VOID)
 			//ゲームデータの初期化
 			GameInit();
 
+			//BGMを止める
+			StopSoundMem(TitleBGM.handle);
+
 			//プレイ画面に切り替え
-			ChangeScene(GAME_SCENE_PLAY);
+			ChangeScene(GAME_SCENE_PLAY, &TitleBGM, &PlayBGM);
 
 			//マウスは描画しない
 			SetMouseDispFlag(FALSE);
@@ -709,6 +825,16 @@ VOID TitleProc(VOID)
 			return;
 		}
 	}
+
+	//BGMが流れていない時
+	if (CheckSoundMem(TitleBGM.handle) == 0)
+	{
+		//BGMを流す
+		PlaySoundMem(TitleBGM.handle, TitleBGM.playType);
+	}
+
+	//音量の変更
+	ChangeBGM(&TitleBGM);
 
 	return;
 }
@@ -719,7 +845,61 @@ VOID TitleProc(VOID)
 /// <param name=""></param>
 VOID TitleDraw(VOID)
 {
-	
+	//背景を描画
+	DrawGraph(TitleImg.X, TitleImg.Y, TitleImg.handle, TRUE);
+
+	//タイトルロゴの描画
+
+	if (TitleLogoBrink == FALSE)
+	{
+		//半透明にする
+		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)TitleLogoCnt / TitleLogo.Y) * 255);
+		//ロゴを描画
+		DrawGraph(TitleLogo.X, TitleLogoCnt, TitleLogo.handle, TRUE);
+		//半透明終了
+		SetDrawBlendMode(DX_BLENDGRAPHTYPE_NORMAL, 0);
+	}
+	//ロゴを描画
+	if (TitleLogoBrink == TRUE)
+	{
+		DrawGraph(TitleLogo.X, TitleLogoCnt, TitleLogo.handle, TRUE);
+	}
+
+	//タイトルロゴの演出が終わった後に表示
+	if (TitleLogoBrink == TRUE)
+	{
+
+		//PushEnterを点滅
+
+		if (PushEnterBrink == TRUE)
+		{
+			//半透明にする
+			SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)PushEnterCnt / PushEnterCntMax) * 255);
+
+			//ロゴを描画
+			DrawGraph(TitleEnter.X, TitleEnter.Y, TitleEnter.handle, TRUE);
+
+			//半透明終了
+			SetDrawBlendMode(DX_BLENDGRAPHTYPE_NORMAL, 0);
+		}
+
+		if (PushEnterBrink == FALSE)
+		{
+			//半透明にする
+			SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)(PushEnterCntMax - PushEnterCnt) / PushEnterCntMax) * 255);
+
+			//ロゴを描画
+			DrawGraph(TitleEnter.X, TitleEnter.Y, TitleEnter.handle, TRUE);
+
+			//半透明終了
+			SetDrawBlendMode(DX_BLENDGRAPHTYPE_NORMAL, 0);
+		}
+
+	}
+
+	//フラグが立ったらメニューを表示
+	DrawMenu(TitleBGM.Volume);
+
 	DrawString(0, 0, "タイトル画面", GetColor(0, 0, 0));
 	return;
 }
@@ -747,8 +927,8 @@ VOID Play(VOID)
 /// <param name=""></param>
 VOID PlayProc(VOID)
 {
-	//メニュー画面とヒント画面が開いていない時限定
-	if (MenuFlag == FALSE && TipsFlag == FALSE)
+	//メニュー画面が開いていない時限定
+	if (MenuFlag == FALSE)
 	{
 		//スペースキーを押しているとき
 		//if (KeyDown(KEY_INPUT_SPACE) == TRUE)
@@ -981,55 +1161,6 @@ VOID PlayProc(VOID)
 			}
 		}
 
-		/*
-		//プレイヤーの操作
-
-			//壁を突き抜けないようにif文を調整
-		if (KeyDown(KEY_INPUT_UP) == TRUE && Player.img.Y > 0)
-		{
-			Player.img.Y -= Player.Yspead * fps.DeltaTime;   //上に移動
-
-			//スピード高すぎてめり込むのを防止
-			if (Player.img.Y < 0)
-			{
-				Player.img.Y = 0;
-			}
-		}
-
-		if (KeyDown(KEY_INPUT_DOWN) == TRUE && Player.img.Y < GAME_HEIGHT - Player.img.height)
-		{
-			Player.img.Y += Player.Yspead * fps.DeltaTime;   //下に移動
-
-			//スピード高すぎてめり込むのを防止
-			if (Player.img.Y > GAME_HEIGHT - Player.img.height)
-			{
-				Player.img.Y = GAME_HEIGHT - Player.img.height;
-			}
-		}
-
-		if (KeyDown(KEY_INPUT_LEFT) == TRUE && Player.img.X > 0)
-		{
-			Player.img.X -= Player.Xspead * fps.DeltaTime;   //左に移動
-
-			//スピード高すぎてめり込むのを防止
-			if (Player.img.X < 0)
-			{
-				Player.img.X = 0;
-			}
-		}
-
-		if (KeyDown(KEY_INPUT_RIGHT) == TRUE && Player.img.X < GAME_WIDTH - Player.img.width)
-		{
-			Player.img.X += Player.Xspead * fps.DeltaTime;   //右に移動
-
-			//スピード高すぎてめり込むのを防止
-			if (Player.img.X > GAME_WIDTH - Player.img.width)
-			{
-				Player.img.X = GAME_WIDTH - Player.img.width;
-			}
-		}
-		*/
-
 		//マウスの位置にプレイヤーを置く(マウスの位置を画像の中心にする)
 		Player.img.X = mouse.Point.x - Player.img.width / 2;
 		Player.img.Y = mouse.Point.y - Player.img.height / 2;
@@ -1115,8 +1246,11 @@ VOID PlayProc(VOID)
 			//ゲームデータの初期化
 			GameInit();
 
+			//BGMを止める
+			StopSoundMem(PlayBGM.handle);
+
 			//エンド画面に切り替え
-			ChangeScene(GAME_SCENE_END);
+			ChangeScene(GAME_SCENE_END, &PlayBGM, &EndBGM);
 
 			//マウスを描画
 			SetMouseDispFlag(TRUE);
@@ -1124,6 +1258,16 @@ VOID PlayProc(VOID)
 			return;
 		}
 	}
+
+	//BGMが流れていない時
+	if (CheckSoundMem(PlayBGM.handle) == 0)
+	{
+		//BGMを流す
+		PlaySoundMem(PlayBGM.handle, PlayBGM.playType);
+	}
+
+	//音量の変更
+	ChangeBGM(&PlayBGM);
 
 	return;
 }
@@ -1228,6 +1372,9 @@ VOID PlayDraw(VOID)
 	//マウスの位置を描画
 	MouseDraw();
 
+	//フラグが立ったらメニューを表示
+	DrawMenu(PlayBGM.Volume);
+
 	DrawString(0, 0, "プレイ画面", GetColor(0, 0, 0));
 	return;
 }
@@ -1327,8 +1474,8 @@ VOID End(VOID)
 /// <param name=""></param>
 VOID EndProc(VOID)
 {
-	//メニュー画面とヒント画面が開いていない時限定
-	if (MenuFlag == FALSE && TipsFlag == FALSE)
+	//メニュー画面が開いていない時限定
+	if (MenuFlag == FALSE)
 	{
 
 		//タイトルシーンに切り替え
@@ -1336,14 +1483,31 @@ VOID EndProc(VOID)
 			//シーン切り替え
 			//次のシーンの初期化をココで行うと楽
 
+			//ゲームスコアだけ単体で初期化
+			Score = 0;
+
 			//ゲームデータの初期化
 			GameInit();
 
-			//タイトル画面に切り替え
-			ChangeScene(GAME_SCENE_TITLE);
+			//BGMを止める
+			StopSoundMem(EndBGM.handle);
 
+			//タイトル画面に切り替え
+			ChangeScene(GAME_SCENE_TITLE, &EndBGM, &TitleBGM);
+
+			return;
 		}
 	}
+
+	//BGMが流れていない時
+	if (CheckSoundMem(EndBGM.handle) == 0)
+	{
+		//BGMを流す
+		PlaySoundMem(EndBGM.handle, EndBGM.playType);
+	}
+
+	//音量の変更
+	ChangeBGM(&EndBGM);
 
 	return;
 }
@@ -1354,29 +1518,23 @@ VOID EndProc(VOID)
 /// <param name=""></param>
 VOID EndDraw(VOID)
 {
-	switch (GameEndFlag)
-	{
-	case GAME_CLEAR:
-		//=======================================================
-		//     ゲームクリアの描画     
-		//=======================================================
+	//背景を描画
+	DrawGraph(EndImg.X, EndImg.Y, EndImg.handle, TRUE);
 
-		
-		break;
+	//画像を描画
+	DrawGraph(EndScore.X, EndScore.Y, EndScore.handle, TRUE);
 
+	//四角形を描画
+	DrawBox(GAME_WIDTH / 2 - 120, GAME_HEIGHT / 2 - 120, GAME_WIDTH / 2 + 160, GAME_HEIGHT / 2 - 40, GetColor(0, 200, 200), TRUE);
 
-	case GAME_OVER:
-		//=======================================================
-		//     ゲームオーバーの描画     
-		//=======================================================
+	//スコアの描画
+	int old = GetFontSize();
+	SetFontSize(40);
+	DrawFormatString(GAME_WIDTH / 2 - 100, GAME_HEIGHT / 2 - 110, GetColor(255, 255, 255), "SCORE：%05d", Score);
+	SetFontSize(old);
 
-		
-		break;
-
-
-	default:
-		break;
-	}
+	//フラグが立ったらメニューを表示
+	DrawMenu(EndBGM.Volume);
 
 	DrawString(0, 0, "エンド画面", GetColor(0, 0, 0));
 	return;
@@ -1393,73 +1551,40 @@ VOID EndDraw(VOID)
 /// <param name="Volum">かかっているBGMの音量</param>
 VOID DrawMenu(int Volum)
 {
-	
+	//メニューアイコンを表示(メニュー画面が開いているかどうかでアイコンを変える)
+	if (MenuFlag == FALSE)
+	{
+		DrawGraph(MenuIcon.X, MenuIcon.Y, MenuIcon.handle, TRUE);
+	}
+	else if (MenuFlag == TRUE)
+	{
+		DrawGraph(MenuIconPushVer.X, MenuIconPushVer.Y, MenuIconPushVer.handle, TRUE);
+	}
+
 	//Mキーが押されたときフラグを反転させる
 	if (KeyClick(KEY_INPUT_M) == TRUE)
 	{
 		if (MenuFlag == TRUE) MenuFlag = FALSE;
 		else if (MenuFlag == FALSE) MenuFlag = TRUE;
-
-		
 	}
 
 	//メニューキーが立っているときに描画
 	if (MenuFlag == TRUE)
 	{
-		
+		//外枠を表示
+		DrawGraph(MenuScreen.X, MenuScreen.Y, MenuScreen.handle, TRUE);
+
+		//volumeを調整するポインタを表示
+		DrawGraph(VolumePointer.X - (((float)Volum / 255) * 200), VolumePointer.Y, VolumePointer.handle, TRUE);
+
+		//文字を表示
+		DrawString(MenuScreen.X + 40, MenuScreen.Y + 197, "Volume", GetColor(0, 0, 0));
+
+		//説明書きを表示
+		DrawString(MenuScreen.X + 30, MenuScreen.Y + 137, "O:音量UP　P:音量DOWN", GetColor(0, 0, 0));
 	}
 	return;
 }
-
-
-//=====================================================================================================================
-//          ココからヒント画面          
-//=====================================================================================================================
-
-VOID DrawTips(VOID)
-{
-	
-
-	//Hキーが押されたときフラグを反転させる
-	if (KeyClick(KEY_INPUT_H) == TRUE)
-	{
-		if (TipsFlag == TRUE) TipsFlag = FALSE;
-		else if (TipsFlag == FALSE) TipsFlag = TRUE;
-	}
-
-	if (TipsFlag == TRUE)
-	{
-		
-		switch (GameScene)
-		{
-		case GAME_SCENE_TITLE:
-			//=============================================
-			//     タイトルの文章     
-			//=============================================
-
-			
-			break;
-		case GAME_SCENE_PLAY:
-			//=============================================
-			//     プレイの文章     
-			//=============================================
-
-			
-			break;
-		case GAME_SCENE_END:
-			//=============================================
-			//     エンドの文章     
-			//=============================================
-
-
-			break;
-		default:
-			break;
-		}
-	}
-	return;
-}
-
 
 //=====================================================================================================================
 //          ココから切り替え          
@@ -1690,8 +1815,6 @@ VOID ChangeBGM(AUDIO* music)
 		ChangeVolumeSoundMem(255, music->handle);
 		music->Volume = 255;
 	}
-
-	
 
 	return;
 }

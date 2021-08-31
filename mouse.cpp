@@ -34,6 +34,7 @@ VOID MouseUpdate(VOID)
 	//マウスの押しているボタンを取得
 	mouse.InputValue = GetMouseInput();
 
+	//以下でマスク処理を行う
 	//左ボタンを押しているかチェック(TRUEは0以外)
 	if ((mouse.InputValue & MOUSE_INPUT_LEFT) == MOUSE_INPUT_LEFT) { mouse.Button[MOUSE_INPUT_LEFT]++; }        //押している
 	if ((mouse.InputValue & MOUSE_INPUT_LEFT) != MOUSE_INPUT_LEFT) { mouse.Button[MOUSE_INPUT_LEFT] = 0; }      //押していない
